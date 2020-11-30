@@ -1,0 +1,474 @@
+#lang racket
+#|======================================================================
+  Práctica 2 - OTHELLO
+  Inteligencia Artificial
+  Curso 2019/20
+  Universidad de Alcalá
+  Javier García Jiménez, David Moreno López, Isabel Martínez Gómez
+  ======================================================================|#
+
+(provide (all-defined-out))
+(require graphics/graphics)
+(require (lib "graphics.ss" "graphics"))
+(open-graphics)
+
+(define ventana '())
+
+(define partida1
+  '((0 0 0 0 0 0 0 0)
+    (0 0 0 0 0 0 0 0)
+    (0 0 0 0 0 0 0 0)
+    (0 0 0 1 2 0 0 0)
+    (0 0 0 2 1 0 0 0)
+    (0 0 0 0 0 0 0 0)
+    (0 0 0 0 0 0 0 0)
+    (0 0 0 0 0 0 0 0)))
+
+;Devuelve el valor de una casilla dada la fila, la columna y el tablero
+(define (getValorCasilla fila columna tablero)
+  (list-ref (list-ref tablero fila) columna))
+
+;Dibuja el tablero con las fichas
+(define (dibujarOthello n fila columna x y turno tablero)
+  (if (= fila 8)
+      (void)
+      (if (even? n)
+          (begin
+            ((draw-solid-rectangle ventana) (make-posn x y) 70 70 "Dark green")
+            ((draw-line ventana) (make-posn (+ x 70) y) (make-posn x y) "black")
+            ((draw-line ventana) (make-posn x (+ y 70)) (make-posn x y) "black")
+            (if (equal?(getValorCasilla fila columna tablero) 0) (void)
+                (if (equal?(getValorCasilla fila columna tablero) 1)
+                    ((draw-solid-ellipse ventana) (make-posn (+ x 10) (+ y 10)) 50 50 "white")
+                    (if (equal?(getValorCasilla fila columna tablero) 2)((draw-solid-ellipse ventana)(make-posn (+ x 10) (+ y 10)) 50 50 "black")
+                        (if (equal? turno 1)
+                            ((draw-solid-ellipse ventana) (make-posn (+ x 33) (+ y 33)) 14 14 "white")
+                            ((draw-solid-ellipse ventana) (make-posn (+ x 33) (+ y 33)) 14 14 "black"))))))
+          (begin
+            ((draw-solid-rectangle ventana) (make-posn x y) 70 70 "Dark green")
+            ((draw-line ventana) (make-posn (+ x 70) y) (make-posn x y) "black")
+            ((draw-line ventana) (make-posn x (+ y 70)) (make-posn x y) "black")
+            (if (equal? (getValorCasilla fila columna tablero) 0) (void)
+                (if (equal?(getValorCasilla fila columna tablero) 1)
+                    ((draw-solid-ellipse ventana) (make-posn (+ x 10) (+ y 10)) 50 50 "white")
+                    (if (equal?(getValorCasilla fila columna tablero) 2)((draw-solid-ellipse ventana)(make-posn (+ x 10) (+ y 10)) 50 50 "black")
+                        (if (equal? turno 1)
+                            ((draw-solid-ellipse ventana) (make-posn (+ x 33) (+ y 33)) 14 14 "white")
+                            ((draw-solid-ellipse ventana) (make-posn (+ x 33) (+ y 33)) 14 14 "black"))))))))
+  (if (= columna 7)
+      (dibujarOthello n (+ fila 1) 0 0 (+ y 70) turno tablero)
+      (if (= fila 8)
+          (void)
+          (dibujarOthello (+ n 1) fila (+ columna 1) (+ 70 x) y turno tablero))))
+
+;Devuelve una fila del tablero
+(define (getFila fila tablero)
+  (list-ref tablero fila))
+
+;Inserta una ficha en el tablero dada las posiciones y el valor
+(define (insertarFicha fila columna valor tablero)
+        (list-set tablero fila (list-set (getFila fila tablero) columna valor)))
+
+;Devuelve una lista con las posiciones de las fichas del color especificado por parametro
+(define (getCasillasColor fila columna tablero color)
+  (if (> fila 7) '()
+      (if ( > columna 7) (append (getCasillasColor (+ fila 1) 0 tablero color))
+          (if (= color (getValorCasilla  fila columna tablero))(append (list(list fila columna)) (getCasillasColor fila (+ 1 columna) tablero color))
+              (append (getCasillasColor fila (+ 1 columna) tablero color))))))
+
+;Devuelve una lista con los posibles movimientos que puede hacer el jugador
+(define (getPosiciones fila columna color tablero)
+  (append (comprobarEsquinaInferiorDerecha fila columna tablero 0 color)
+          (comprobarEsquinaInferiorIzquierda fila columna tablero 0 color)
+          (comprobarEsquinaSuperiorDerecha fila columna tablero 0 color)
+          (comprobarEsquinaSuperiorIzquierda fila columna tablero 0 color)
+          (comprobarFilaIzquierda fila columna tablero 0 color)
+          (comprobarFilaDerecha fila columna tablero 0 color)
+          (comprobarColumnaAbajo fila columna tablero 0 color )
+          (comprobarColumnaArriba fila columna tablero 0 color)))
+
+;Imprime cuales son los movimientos posibles para un jugador
+(define (movimientosPosibles listaFichasColor color tablero)
+  (if (equal? listaFichasColor '() ) '()
+      (append (getPosiciones (caar listaFichasColor) (cadr(car listaFichasColor)) color tablero)(movimientosPosibles (cdr listaFichasColor) color tablero))))
+
+;Imprime el formato del tablero
+(define (imprimirTablero fila columna tablero)
+  (when (> columna 7) (printf "\n"))
+  (when (and (= columna 0)(= fila 0)) (display "\n  0 1 2 3 4 5 6 7\n"))
+  (when (and (= columna 0) (<= fila 7)) (display fila)(display " "))
+  (when (and (<= fila 7) (<= columna 7))
+  (display (getValorCasilla fila columna tablero)) (display " "))
+  (if (> fila 7) (void)
+      (if ( > columna  7)(imprimirTablero (+ 1 fila) 0 tablero)
+          (imprimirTablero fila (+ 1 columna) tablero))) )
+
+#|==================================================================
+  Las siguientes funciones comprueban si para una casilla hay alguna  
+  casilla donde el jugador pueda meter una ficha.
+  Si la encuentra devuelve la posición de esa casilla mediante su
+  fila y columna.
+  ==================================================================|#
+
+(define (comprobarEsquinaInferiorDerecha fila columna tablero contador color)
+  (if (or (= columna 7) (= fila 7)) '()
+         (if (and (= (getValorCasilla (+ fila 1)  (+ columna 1) tablero) 0) (> contador 0))(append (list (+ fila 1)  (+ columna 1)))
+              (if (and (= (getValorCasilla (+ fila 1)  (+ columna 1) tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla (+ fila 1)  (+ columna 1) tablero) color) '()
+                      (append (comprobarEsquinaInferiorDerecha (+ fila 1)  (+ columna 1) tablero (+ 1 contador) color)))))))
+
+(define (comprobarEsquinaInferiorIzquierda fila columna tablero contador color)
+  (if (or (= columna 0) (= fila 7)) '()
+         (if (and (= (getValorCasilla (+ fila 1)  (- columna 1) tablero) 0) (> contador 0))(append (list (+ fila 1)  (- columna 1)))
+              (if (and (= (getValorCasilla (+ fila 1)  (- columna 1) tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla (+ fila 1)  (- columna 1) tablero) color) '()
+                      (append (comprobarEsquinaInferiorIzquierda (+ fila 1)  (- columna 1) tablero (+ 1 contador) color)))))))
+
+(define (comprobarEsquinaSuperiorDerecha fila columna tablero contador color)
+  (if (or (= columna 7) (= fila 0)) '()
+         (if (and (= (getValorCasilla (- fila 1)  (+ columna 1) tablero) 0) (> contador 0))(append (list (- fila 1)  (+ columna 1)))
+              (if (and (= (getValorCasilla (- fila 1)  (+ columna 1) tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla (- fila 1)  (+ columna 1) tablero) color) '()
+                      (append (comprobarEsquinaSuperiorDerecha (- fila 1)  (+ columna 1) tablero (+ 1 contador) color)))))))
+
+(define (comprobarEsquinaSuperiorIzquierda fila columna tablero contador color)
+  (if (or (= columna 0) (= fila 0)) '()
+         (if (and (= (getValorCasilla (- fila 1)  (- columna 1) tablero) 0) (> contador 0))(append (list (- fila 1)  (- columna 1)))
+              (if (and (= (getValorCasilla (- fila 1)  (- columna 1) tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla (- fila 1)  (- columna 1) tablero) color) '()
+                      (append (comprobarEsquinaSuperiorIzquierda (- fila 1)  (- columna 1) tablero (+ 1 contador) color)))))))
+
+(define (comprobarFilaIzquierda fila columna tablero contador color)
+  (if (= columna 0) '()
+         (if (and (= (getValorCasilla fila  (- columna 1) tablero) 0) (> contador 0))(append (list fila  (- columna 1)))
+              (if (and (= (getValorCasilla fila  (- columna 1) tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla fila  (- columna 1) tablero) color) '()
+                      (append (comprobarFilaIzquierda fila (- columna 1) tablero (+ 1 contador) color)))))))
+
+(define (comprobarFilaDerecha fila columna tablero contador color)
+  (if (= columna 7) '()
+         (if (and (= (getValorCasilla fila  (+ columna 1) tablero) 0) (> contador 0))(append (list fila  (+ columna 1)))
+              (if (and (= (getValorCasilla fila  (+ columna 1) tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla fila  (+ columna 1) tablero) color) '()
+                      (append (comprobarFilaDerecha fila (+ columna 1) tablero (+ 1 contador) color)))))))
+
+(define (comprobarColumnaAbajo fila columna tablero contador color )
+ (if (= fila 7) '()
+         (if (and (= (getValorCasilla (+ fila 1) columna  tablero) 0) (> contador 0))(append (list (+ fila 1) columna))
+              (if (and (= (getValorCasilla (+ fila 1) columna tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla (+ fila 1) columna tablero) color) '()
+                      (append (comprobarColumnaAbajo (+ fila 1) columna tablero (+ 1 contador) color)))))))
+
+(define (comprobarColumnaArriba fila columna tablero contador color)
+  (if (= fila 0) '()
+         (if (and (= (getValorCasilla (- fila 1) columna  tablero) 0) (> contador 0))(append (list (- fila 1) columna))
+              (if (and (= (getValorCasilla (- fila 1) columna tablero) 0) (= contador 0)) '()
+                  (if (= (getValorCasilla (- fila 1) columna tablero) color) '()
+                      (append (comprobarColumnaArriba (- fila 1) columna tablero (+ 1 contador) color)))))))
+
+;Actualiza el tablero mostrando las posiciones con una X donde un jugador puede insertar una ficha
+(define (actualizarTablero listaPosibles tablero)
+  (if (equal? listaPosibles '()) tablero
+      (actualizarTablero (cddr listaPosibles) (insertarFicha (car listaPosibles) (cadr listaPosibles) "X" tablero))))
+
+;Imprime el tablero con los posibles movimientos para el jugador
+(define (imprimirPosiblesMovimientos tablero turno)
+  (imprimirTablero 0 0 (actualizarTablero(movimientosPosibles(getCasillasColor 0 0 tablero turno) turno tablero) tablero)))
+
+#|=============================================================================
+  Las siguientes funciones comprueban qué fichas se tienen que voltear, hay
+  una función para cada una de las 8 direcciones posibles en las que se pueden
+  voltear fichas
+  =============================================================================|#
+
+(define (columnaArribaVolteable fila columna tablero contador color)
+  (if (<= fila 0) #f
+      (if (= (getValorCasilla (- fila 1) columna tablero) 0) #f
+          (if (and (= (getValorCasilla (- fila 1) columna tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla (- fila 1) columna tablero) color) (> contador 0)) #t
+                  (columnaArribaVolteable (- fila 1) columna tablero (+ 1 contador) color))))))
+
+(define (columnaAbajoVolteable fila columna tablero contador color)
+  (if (or (= fila 7) (< fila 0) (< columna 0)) #f
+      (if (= (getValorCasilla (+ 1 fila) columna tablero) 0) #f
+           (if (and (= (getValorCasilla (+ 1 fila) columna tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla (+ 1 fila) columna tablero) color) (> contador 0)) #t
+                   (columnaAbajoVolteable (+ 1 fila) columna tablero (+ 1 contador) color))))))
+
+(define (filaDerechaVolteable fila columna tablero contador color)
+  (if ( or (= columna 7)(< columna 0) (< fila 0)) #f
+      (if (= (getValorCasilla fila (+ columna 1)  tablero) 0) #f
+          (if (and (= (getValorCasilla fila (+ columna 1) tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla fila (+ columna 1) tablero) color) (> contador 0)) #t
+                  (filaDerechaVolteable fila (+ columna 1) tablero (+ 1 contador) color))))))
+
+(define (filaIzquierdaVolteable fila columna tablero contador color)
+  (if (= columna 0) #f
+      (if (= (getValorCasilla fila (- columna 1)  tablero) 0) #f
+          (if (and (= (getValorCasilla fila (- columna 1) tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla fila (- columna 1) tablero) color) (> contador 0)) #t
+                  (filaIzquierdaVolteable fila (- columna 1) tablero (+ 1 contador) color))))))
+
+(define (diagonalArribaIzquierdaVolteable fila columna tablero contador color)
+  (if ( or (= fila 0)(= columna 0)) #f
+      (if (= (getValorCasilla (- fila 1) (- columna 1)  tablero) 0) #f
+          (if (and (= (getValorCasilla (- fila 1) (- columna 1) tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla (- fila 1) (- columna 1) tablero) color) (> contador 0)) #t
+                  (diagonalArribaIzquierdaVolteable (- fila 1) (- columna 1) tablero (+ 1 contador) color))))))
+
+(define (diagonalArribaDerechaVolteable fila columna tablero contador color)
+  (if ( or (= fila 0)(= columna 7)) #f
+      (if (= (getValorCasilla (- fila 1) (+ columna 1)  tablero) 0) #f
+          (if (and (= (getValorCasilla (- fila 1) (+ columna 1) tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla (- fila 1) (+ columna 1) tablero) color) (> contador 0)) #t
+                  (diagonalArribaDerechaVolteable (- fila 1) (+ columna 1) tablero (+ 1 contador) color))))))
+
+(define (diagonalAbajoDerechaVolteable fila columna tablero contador color)
+  (if ( or (= fila 7)(= columna 7)) #f
+      (if (= (getValorCasilla (+ fila 1) (+ columna 1)  tablero) 0) #f
+          (if (and (= (getValorCasilla (+ fila 1) (+ columna 1) tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla (+ fila 1) (+ columna 1) tablero) color) (> contador 0)) #t
+                  (diagonalAbajoDerechaVolteable (+ fila 1) (+ columna 1) tablero (+ 1 contador) color))))))
+
+(define (diagonalAbajoIzquierdaVolteable fila columna tablero contador color)
+  (if ( or (= fila 7)(= columna 0)) #f
+      (if (= (getValorCasilla (+ fila 1) (- columna 1)  tablero) 0) #f
+          (if (and (= (getValorCasilla (+ fila 1) (- columna 1) tablero) color) (= contador 0)) #f
+              (if (and (= (getValorCasilla (+ fila 1) (- columna 1) tablero) color) (> contador 0)) #t
+                  (diagonalAbajoIzquierdaVolteable (+ fila 1) (- columna 1) tablero (+ 1 contador) color))))))
+
+#|=============================================================================
+  Las siguientes funciones voltean las fichas del tablero, haciendo que cada
+  una de las implicadas cambie de color. Hay una función para cada una de las
+  8 direcciones posibles.
+  =============================================================================|#
+
+(define (voltearColumnaAbajo fila columna tablero color)
+  (if (not (= (getValorCasilla (+ 1 fila) columna tablero) color))
+      (voltearColumnaAbajo (+ 1 fila) columna (insertarFicha (+ 1 fila) columna color tablero) color)
+      tablero))
+
+(define (voltearColumnaArriba fila columna tablero color)
+  (if (not (= (getValorCasilla (- fila 1) columna tablero) color))
+      (voltearColumnaArriba (- fila 1) columna (insertarFicha (- fila 1) columna color tablero) color)
+      tablero))
+
+(define (voltearFilaDerecha fila columna tablero color)
+  (if (not (= (getValorCasilla fila ( + columna 1) tablero) color))
+      (voltearFilaDerecha fila ( + columna 1) (insertarFicha fila ( + columna 1) color tablero) color)
+      tablero))
+
+(define (voltearFilaIzquierda fila columna tablero color)
+  (if (not (= (getValorCasilla fila (- columna 1) tablero) color))
+      (voltearFilaIzquierda fila (- columna 1) (insertarFicha fila (- columna 1) color tablero) color)
+      tablero))
+
+(define (voltearDiagonalArribaIzquierda fila columna tablero color)
+  (if (not (= (getValorCasilla (- fila 1) (- columna 1) tablero) color))
+      (voltearDiagonalArribaIzquierda  (- fila 1) (- columna 1) (insertarFicha (- fila 1) (- columna 1) color tablero) color)
+      tablero))
+
+(define (voltearDiagonalArribaDerecha fila columna tablero color)
+  (if (not (= (getValorCasilla (- fila 1) (+ columna 1) tablero) color))
+      (voltearDiagonalArribaDerecha  (- fila 1) (+ columna 1) (insertarFicha (- fila 1) (+ columna 1) color tablero) color)
+      tablero))
+
+(define (voltearDiagonalAbajoDerecha fila columna tablero color)
+  (if (not (= (getValorCasilla (+ fila 1) (+ columna 1) tablero) color))
+      (voltearDiagonalAbajoDerecha  (+ fila 1) (+ columna 1) (insertarFicha (+ fila 1) (+ columna 1) color tablero) color)
+      tablero))
+
+(define (voltearDiagonalAbajoIzquierda fila columna tablero color)
+  (if (not (= (getValorCasilla (+ fila 1) (- columna 1) tablero) color))
+      (voltearDiagonalAbajoIzquierda  (+ fila 1) (- columna 1) (insertarFicha (+ fila 1) (- columna 1) color tablero) color)
+      tablero))
+
+(define (movimientoValido fila columna listaPosibles)
+  (if (equal? listaPosibles '()) #f
+      (if (equal? (list fila columna) (list (car listaPosibles) (cadr listaPosibles))) #t
+          (movimientoValido fila columna (cddr listaPosibles)))))
+
+;Cuenta el numero de fichas blancas que hay en el tablero
+(define (contarBlancas tablero fila columna contador)
+  (if (> fila 7) contador
+      (if (> columna 7) (contarBlancas tablero (+ 1 fila) 0 contador)
+          (if (= (getValorCasilla fila columna tablero) 1) (contarBlancas tablero fila (+ 1 columna) (+ 1 contador))
+              (contarBlancas tablero fila (+ 1 columna) contador)))))
+
+;Cuenta el numero de fichas negras que hay en el tablero
+(define (contarNegras tablero fila columna contador)
+  (if (> fila 7) contador
+      (if (> columna 7) (contarNegras tablero (+ 1 fila) 0 contador)
+          (if (= (getValorCasilla fila columna tablero) 2) (contarNegras tablero fila (+ 1 columna) (+ 1 contador))
+              (contarNegras tablero fila (+ 1 columna) contador)))))
+
+;Crea una lista con el marcador
+(define (marcadorJuego tablero)
+  (define blancas (contarBlancas tablero 0 0 0))
+  (define negras (contarNegras tablero 0 0 0))
+  (list blancas negras))
+
+;Imprime el marcador
+(define (imprimirMarcador lista)
+  (display "\nBlancas ") (display (car lista)) (display " - ") (display "Negras ") (display (cadr lista)) (display "\n"))
+
+;Diferencia de puntos en el marcador
+(define (diferenciaPuntosMarcador marcador)
+  (- (cadr marcador) (car marcador)))
+
+;Voltea las fichas necesarias al hacer un movimiento llamando a todas las funciones explicadas anteriormente   
+(define (realizarMovimiento fila columna tablero color)
+  (when (equal? (columnaArribaVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearColumnaArriba fila columna (insertarFicha fila columna color tablero) color)))
+  (when (equal? (columnaAbajoVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearColumnaAbajo fila columna (insertarFicha fila columna color tablero) color)) )
+  (when (equal? (filaDerechaVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearFilaDerecha fila columna (insertarFicha fila columna color tablero) color)) )
+  (when (equal? (filaIzquierdaVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearFilaIzquierda fila columna (insertarFicha fila columna color tablero) color)) )
+  (when (equal? (diagonalArribaIzquierdaVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearDiagonalArribaIzquierda fila columna (insertarFicha fila columna color tablero) color)) )
+  (when (equal? (diagonalArribaDerechaVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearDiagonalArribaDerecha fila columna (insertarFicha fila columna color tablero) color)))
+  (when (equal? (diagonalAbajoDerechaVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearDiagonalAbajoDerecha fila columna (insertarFicha fila columna color tablero) color)) )
+  (when (equal? (diagonalAbajoIzquierdaVolteable fila columna tablero 0 color) #t)
+    (set! tablero (voltearDiagonalAbajoIzquierda fila columna (insertarFicha fila columna color tablero) color)) )
+  tablero)
+
+;Funcion que se encarga de manejar los clicks 
+(define (elegirMovimiento tablero color)
+  (define click (mouse-click-posn (get-mouse-click ventana)))
+  (define fila (floor (/(posn-y click )70)))
+  (define columna (floor (/ (posn-x  click) 70)))
+  (display "fila click") (display fila) (display "\n")
+  (display "columna click") (display columna) (display "\n") 
+  (display  "\nJugador con fichas ") (display color) (display "\n Introduzca fila: ")
+  (if (movimientoValido fila columna (movimientosPosibles (getCasillasColor 0 0 tablero color) color tablero))
+      (realizarMovimiento fila columna tablero color)
+   (elegirMovimiento tablero color)))
+
+;Cambia el turno del jugador
+(define (cambiarTurno turno)
+  (if (= turno 1)  2  1))
+
+;Comprueba si un jugador puede realizar movimientos 
+(define (puedeJugar tablero turno)
+  (if (not (equal? (movimientosPosibles (getCasillasColor 0 0 tablero turno) turno tablero) '())) #t #f))
+
+;Comprueba si el juego ha terminado
+(define (finJuego tablero)
+  (if (and (equal? (movimientosPosibles (getCasillasColor 0 0 tablero 1) 1 tablero) '())
+           (equal? (movimientosPosibles (getCasillasColor 0 0 tablero 2) 2 tablero) '())) #t #f))
+
+;Muestra el marcador final del juego
+(define (acabarJuego tablero)
+  (display "Se ha terminado el juego\n")
+  (define marcador (marcadorJuego tablero))
+  (imprimirMarcador marcador) 
+  marcador)
+
+(define moveMinimax '())
+
+;Crea un lista en la que cada elemento de la lista es otra lista cuyos elementos son fila y columna de los posibles movimientos del jugador
+(define (crearListaPosiciones listaPosibles)
+  (if (equal? listaPosibles '()) '()
+      (append (list(list (car listaPosibles) (cadr listaPosibles)))
+              (crearListaPosiciones (cddr listaPosibles)))))
+
+;Busca una posición aplicando el método minimax
+(define (busquedaMinimax tablero turno profundidad)
+  (foldl(lambda (valor maxValor)
+     (if (> (car valor) (car maxValor)) valor maxValor)) '(-9999 -1 -1)
+        (for/list ([i (crearListaPosiciones (movimientosPosibles
+                                             (getCasillasColor 0 0 tablero turno) turno tablero))])
+           (list (minimax (realizarMovimiento (car i) (cadr i) tablero turno)
+                          (cambiarTurno turno) profundidad) (car i) (cadr i)))))
+
+;La maquina inserta posiciones en el tablero mediante el algoritmo minimax
+(define (minimax tablero turno profundidad)
+  (if (or(finJuego tablero) (= profundidad 0)) (diferenciaPuntosMarcador(marcadorJuego tablero))
+      (if (equal?(movimientosPosibles (getCasillasColor 0 0 tablero turno) turno tablero)'())
+          (minimax tablero (cambiarTurno turno) profundidad)
+      (if (= turno 2)
+          (foldl(lambda (valor maxValor)
+                  (if (> valor maxValor) valor maxValor)) -9999
+                  (for/list ([i (crearListaPosiciones (movimientosPosibles
+                                                       (getCasillasColor 0 0 tablero turno) turno tablero))])
+                     (minimax (realizarMovimiento (car i) (cadr i) tablero turno)
+                              (cambiarTurno turno) (- profundidad 1)) (car i) (cadr i)))
+          (foldl(lambda (valor minValor)
+                  (if (<  valor minValor) valor minValor)) 9999
+                  (for/list ([i (crearListaPosiciones (movimientosPosibles
+                                                       (getCasillasColor 0 0 tablero turno) turno tablero))])
+                     (minimax (realizarMovimiento (car i) (cadr i) tablero turno)
+                              (cambiarTurno turno) (- profundidad 1)) (car i) (cadr i)))))))
+
+;Modo de juego: jugador contra jugador
+(define (unoContraUno tablero turno marcador)
+  (dibujarOthello 0 0 0 0 0 turno
+                  (actualizarTablero(movimientosPosibles(getCasillasColor 0 0 tablero turno) turno tablero) tablero))
+  (display "Turno del jugador: ") (display turno)
+  (display "\nB: ")(display (car marcador)) (display " - N:") (display ( cadr marcador)) (display "\n")
+  (if (finJuego tablero) (acabarJuego tablero)  
+  (if (puedeJugar tablero turno)
+       (unoContraUno  (elegirMovimiento tablero turno) (cambiarTurno turno) (marcadorJuego tablero))
+      (unoContraUno tablero (cambiarTurno turno) marcador))))
+
+(define movimiento '())
+(define ia 0)
+
+;Modo de juego: jugador contra maquina
+(define (unoContraIAMinimax tablero turno marcador profundidad)
+  (dibujarOthello 0 0 0 0 0 turno(actualizarTablero(movimientosPosibles (getCasillasColor 0 0 tablero turno) turno tablero) tablero))
+  (set! marcador (marcadorJuego tablero))
+  (imprimirTablero 0 0 tablero)
+  (imprimirMarcador marcador)
+  (display "Turno del jugador ") (display turno) (display "\n")
+  (if (equal? (finJuego tablero) #t) (acabarJuego tablero)
+  (if(= turno 1)
+        (if (puedeJugar tablero turno)
+             (unoContraIAMinimax (elegirMovimiento tablero turno) (cambiarTurno turno) marcador profundidad)
+             (unoContraIAMinimax tablero (cambiarTurno turno) marcador profundidad))
+        (if (puedeJugar tablero turno)
+    (let ([ia (busquedaMinimax tablero turno profundidad)])
+    (unoContraIAMinimax (realizarMovimiento (cadr ia) (car (cddr ia)) tablero turno)
+                        (cambiarTurno turno) marcador profundidad))
+      (unoContraIAMinimax tablero (cambiarTurno turno) marcador profundidad)))))
+
+(define menu '())
+
+;Funcion que se encarga de manejar el menu principal
+(define (dibujarMenu x1 y1 x2 y2 dificultad)
+  (set! menu(open-viewport "menuPrincipal" 1002 666))
+(((draw-pixmap-posn "fondo.jpg")menu) (make-posn 0 0))
+  ((draw-ellipse menu) (make-posn x1 y1) 230 230 "Black")
+  ((draw-ellipse menu) (make-posn x2 y2) 230 230 "Black")
+  (define click (mouse-click-posn (get-mouse-click menu)))
+  (when(and (> (floor (posn-x click) ) 24)
+            (< (floor (posn-x click) ) 254)  (> (floor (posn-y click) ) 370 )
+            (< (floor( posn-y click) ) 605) ) (juegoUnoVsIA dificultad) #f)
+  (when(and (> (floor (posn-x click) ) 710)
+            (< (floor (posn-x click) ) 964)  (> (floor (posn-y click) ) 370 )
+            (< (floor( posn-y click) ) 605) ) (juegoUnoVsUno) #f))
+
+;Abrir el juego uno contra uno
+(define (juegoUnoVsUno)
+  (set! ventana(open-viewport "Othello" 560 560))
+  (close-viewport menu)
+  (unoContraUno partida1 1 (list 0 0)))
+
+;Abrir el juego uno contra maquina
+(define (juegoUnoVsIA dificultad)
+  (close-viewport menu)
+  (set! ventana(open-viewport "Othello" 560 560))
+  (unoContraIAMinimax partida1 1 (list 0 0) dificultad))
+
+;Funcion para introducir por teclado la dificultad de la IA
+(define (iniciarJuego)
+  (display "Introduzca dificultad(1-5): ")
+(define dificultad (read))
+  (if (and (< dificultad 5) (> dificultad 0))(dibujarMenu 24 370 710 370 dificultad)
+      (iniciarJuego)))
+
+(iniciarJuego)
